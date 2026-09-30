@@ -1,0 +1,6 @@
+{
+  "name": "ISLAND AI",
+  "description": "Universal AI command surface and LLM wrapper for reasoning, building, coding, research, automation, and autonomous agents.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
