@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ArrowUp, Sparkles, FileText, ChevronDown, Check, Cpu, Eye } from 'lucide-react';
+import { ArrowUp, Sparkles, FileText, ChevronDown, Check, Cpu, Eye, Mic, MicOff, Volume2 } from 'lucide-react';
 import { CapabilityId, ModelId, AttachedContext } from '../../types';
 import { defaultIntentRouter } from '../../lib/intentRouter';
 import { FilePreviewModal } from '../ContextModal/FilePreviewModal';
+import { useSpeechRecognition } from '../../lib/useSpeechRecognition';
 
 interface CommandSurfaceProps {
   onExecuteCommand: (instruction: string, forcedCapability?: CapabilityId) => void;
@@ -74,6 +75,30 @@ export const CommandSurface: React.FC<CommandSurfaceProps> = ({
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const baseInstructionRef = useRef('');
+
+  // Web Speech API Voice Recognition Integration
+  const {
+    isSupported: isSpeechSupported,
+    isListening: isSpeechListening,
+    startListening: startSpeech,
+    stopListening: stopSpeech,
+    error: speechError,
+  } = useSpeechRecognition({
+    onTranscriptChange: (transcriptText) => {
+      const base = baseInstructionRef.current;
+      setInstruction(base ? `${base} ${transcriptText}` : transcriptText);
+    },
+  });
+
+  const handleToggleSpeech = () => {
+    if (isSpeechListening) {
+      stopSpeech();
+    } else {
+      baseInstructionRef.current = instruction.trim();
+      startSpeech();
+    }
+  };
 
   // Close dropdown on click outside
   useEffect(() => {
@@ -154,6 +179,31 @@ export const CommandSurface: React.FC<CommandSurfaceProps> = ({
             className="flex-1 bg-transparent border-0 outline-none resize-none text-xs sm:text-sm text-[#F1F4F3] placeholder:text-[#555F61] leading-relaxed py-1 min-h-[44px]"
           />
 
+          {/* Microphone Voice Command Trigger Icon (Web Speech API) */}
+          <button
+            type="button"
+            onClick={handleToggleSpeech}
+            className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 transition-all shadow-md touch-manipulation active:scale-90 ${
+              isSpeechListening
+                ? 'bg-[#FF5555] text-white ring-4 ring-[#FF5555]/30 animate-pulse'
+                : 'bg-[#14181B] hover:bg-[#1E2428] text-[#9CA4A5] hover:text-[#D8FF65] border border-[#202629]'
+            }`}
+            title={
+              isSpeechListening
+                ? 'Listening to speech... Click to stop (Web Speech API)'
+                : isSpeechSupported
+                ? 'Hands-free voice command (Web Speech API) - Click to speak'
+                : 'Web Speech API is not supported in this browser'
+            }
+            aria-label="Toggle Microphone Voice Command"
+          >
+            {isSpeechListening ? (
+              <MicOff className="w-5 h-5 text-white" />
+            ) : (
+              <Mic className="w-5 h-5" />
+            )}
+          </button>
+
           <button
             onClick={() => handleSubmit()}
             onTouchStart={() => setIsSendTouching(true)}
@@ -169,6 +219,19 @@ export const CommandSurface: React.FC<CommandSurfaceProps> = ({
             <ArrowUp className="w-5 h-5 font-bold" />
           </button>
         </div>
+
+        {/* Live Speech Recognition Active Status Feedback */}
+        {isSpeechListening && (
+          <div className="flex items-center gap-2 px-2 pt-2 text-[10px] text-[#FF5555] font-mono animate-pulse">
+            <span className="w-2 h-2 rounded-full bg-[#FF5555] animate-ping" />
+            <span>Listening hands-free... Speak your prompt naturally.</span>
+          </div>
+        )}
+        {speechError && (
+          <div className="px-2 pt-1.5 text-[10px] text-[#FFB86C] font-mono">
+            {speechError}
+          </div>
+        )}
 
         {/* Attached Files Interactive Preview Badges */}
         {attachedContext.length > 0 && (

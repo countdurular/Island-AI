@@ -235,6 +235,10 @@ export const AmbientNewsFeeds: React.FC<AmbientNewsFeedsProps> = ({
   const [secondsUntilNextPoll, setSecondsUntilNextPoll] = useState<number>(POLL_INTERVAL_SECONDS);
 
   const isFetchingRef = useRef(false);
+  const filesRef = useRef(files);
+  filesRef.current = files;
+  const onToastRef = useRef(onToast);
+  onToastRef.current = onToast;
 
   // Fetch live news updates from the API endpoint
   const fetchLiveNews = useCallback(
@@ -285,16 +289,16 @@ export const AmbientNewsFeeds: React.FC<AmbientNewsFeedsProps> = ({
           setLastSyncTime(timeStr);
           setSecondsUntilNextPoll(POLL_INTERVAL_SECONDS);
 
-          if (onToast && !isAutoPoll) {
-            onToast(
+          if (onToastRef.current && !isAutoPoll) {
+            const targetTitle = filesRef.current.find((f) => f.id === targetFileId)?.title || 'file';
+            onToastRef.current(
               targetFileId
-                ? `Live update received for ${files.find((f) => f.id === targetFileId)?.title || 'file'}`
+                ? `Live update received for ${targetTitle}`
                 : 'All 6 news files refreshed via live polling'
             );
           }
         }
       } catch (err: unknown) {
-        console.warn('News poll exception, using resilient timestamp updates:', err);
         // Fallback dynamic timestamp updates so data feels constantly fresh
         setFiles((prev) =>
           prev.map((f) => {
@@ -323,17 +327,20 @@ export const AmbientNewsFeeds: React.FC<AmbientNewsFeedsProps> = ({
         }
       }
     },
-    [files, onToast]
+    []
   );
 
-  // 1. Initial skeleton loading simulation & first content fetch on mount
+  const fetchLiveNewsRef = useRef(fetchLiveNews);
+  fetchLiveNewsRef.current = fetchLiveNews;
+
+  // 1. Initial skeleton loading simulation & first content fetch on mount ONLY
   useEffect(() => {
     const initialTimer = setTimeout(() => {
-      fetchLiveNews(undefined, true);
+      fetchLiveNewsRef.current(undefined, true);
     }, 700);
 
     return () => clearTimeout(initialTimer);
-  }, [fetchLiveNews]);
+  }, []);
 
   // 2. 60-Second Polling Mechanism + 1s countdown ticker
   useEffect(() => {
@@ -347,7 +354,7 @@ export const AmbientNewsFeeds: React.FC<AmbientNewsFeedsProps> = ({
       setSecondsUntilNextPoll((prev) => {
         if (prev <= 1) {
           // Time to poll!
-          fetchLiveNews(undefined, true);
+          fetchLiveNewsRef.current(undefined, true);
           return POLL_INTERVAL_SECONDS;
         }
         return prev - 1;
@@ -355,7 +362,7 @@ export const AmbientNewsFeeds: React.FC<AmbientNewsFeedsProps> = ({
     }, 1000);
 
     return () => clearInterval(pollInterval);
-  }, [fetchLiveNews]);
+  }, []);
 
   const leftFiles = files.filter((f) => f.column === 'left');
   const rightFiles = files.filter((f) => f.column === 'right');

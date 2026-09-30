@@ -78,4 +78,12 @@ export interface WorkspaceSession {
   createdAt: number;
 }
 
+export interface RecentCommand {
+  id: string;
+  query: string;
+  capability: CapabilityId;
+  model?: string;
+  timestamp: number;
+}
+
 export type IslandTheme = 'obsidian' | 'cyber' | 'teal';

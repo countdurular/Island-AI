@@ -20,6 +20,7 @@ import {
   IslandTheme 
 } from '../../types';
 import { defaultProviderAdapter } from '../../lib/providerAdapter';
+import { addRecentCommand } from '../../lib/recentCommandsStore';
 
 interface IslandDimensions {
   maxWidth: string;
@@ -221,6 +222,9 @@ export const Island: React.FC = () => {
     setExecutingSessionId(sessionId);
     setLoading(true);
 
+    // Track in Recent Commands store
+    addRecentCommand(instruction, activeCap, selectedModel);
+
     if (activeCap === 'build') setIslandState('building');
     else if (activeCap === 'voice') setIslandState('listening');
     else setIslandState('thinking');
@@ -295,6 +299,9 @@ export const Island: React.FC = () => {
     );
     setExecutingSessionId(targetSessionId);
     setLoading(true);
+
+    // Track in Recent Commands store
+    addRecentCommand(instruction, activeCap, targetSession.model);
 
     if (activeCap === 'build') setIslandState('building');
     else if (activeCap === 'voice') setIslandState('listening');
