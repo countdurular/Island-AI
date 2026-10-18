@@ -27,6 +27,7 @@ app.get('/api/health', (req, res) => {
 // Gemini generation endpoint
 app.post('/api/gemini/generate', async (req, res) => {
   const { prompt, systemInstruction, model, attachedContext } = req.body;
+  const modelName = model || 'gemini-3.8-flash';
 
   if (!process.env.GEMINI_API_KEY) {
     return res.status(503).json({
@@ -44,8 +45,6 @@ app.post('/api/gemini/generate', async (req, res) => {
         },
       },
     });
-
-    const modelName = model || 'gemini-3.8-flash';
 
     let promptContent = prompt;
     if (attachedContext && Array.isArray(attachedContext) && attachedContext.length > 0) {
@@ -67,23 +66,33 @@ app.post('/api/gemini/generate', async (req, res) => {
     return res.json({ text, model: modelName, simulated: false });
   } catch (err: unknown) {
     const errString = String(err);
-    const isRateLimit =
+    const isRateLimitOrSpike =
       (err as any)?.status === 429 ||
+      (err as any)?.status === 503 ||
       errString.includes('429') ||
+      errString.includes('503') ||
       errString.includes('quota') ||
-      errString.includes('RESOURCE_EXHAUSTED');
+      errString.includes('high demand') ||
+      errString.includes('RESOURCE_EXHAUSTED') ||
+      errString.includes('UNAVAILABLE');
 
-    if (isRateLimit) {
-      console.log('[server] Gemini API quota ceiling encountered on generate; signaling client fallback simulator.');
-      return res.status(429).json({
-        error: 'Gemini free tier quota limit reached. Using dynamic fallback engine.',
-        rateLimited: true,
+    if (isRateLimitOrSpike) {
+      console.log('[server] Gemini API temporary spike or quota limit encountered, delegating to dynamic fallback engine.');
+      return res.json({
+        simulated: true,
+        model: `${modelName || 'gemini-3.8-flash'} (Fallback Engine)`,
+        text: '',
+        notice: 'Gemini free tier quota limit or high demand reached. Using dynamic fallback engine.',
       });
     }
 
     console.log('[server] Gemini generation notice:', (err as any)?.message || 'Service unavailable');
-    const errorMessage = err instanceof Error ? err.message : 'Generation service temporarily unavailable';
-    return res.status(500).json({ error: errorMessage });
+    return res.json({
+      simulated: true,
+      model: `${modelName || 'gemini-3.8-flash'} (Fallback Engine)`,
+      text: '',
+      notice: 'Generation service temporarily unavailable. Using dynamic fallback engine.',
+    });
   }
 });
 
